@@ -660,7 +660,7 @@
           <div class="slider-block" id="companySliders"></div>
           <p class="section-label">Weights</p>
           <div id="companyWeights"></div>
-          <p class="weights-note">Note: weights are independent parameters — they need not sum to 1.</p>
+          <p class="weights-note">Weights in each group are normalized to sum to 1. Adjusting any weight rescales the whole group proportionally.</p>
 
           <div class="chart-box"><canvas id="chartCompany"></canvas></div>
 
@@ -797,6 +797,27 @@
   let charts = {};
   let presetLabel = 'Custom (manual)';
 
+  const WEIGHT_KEYS = {
+    company: ['alpha', 'beta', 'gamma', 'delta'],
+    manager: ['P', 'C', 'L'],
+    employee: ['A', 'M', 'W'],
+    team: ['Ct', 'It', 'Ft']
+  };
+
+  function normalizeWeightGroup(keys) {
+    var sum = keys.reduce(function (s, k) { return s + inputs[k]; }, 0);
+    if (sum < 1e-12) {
+      var eq = 1 / keys.length;
+      keys.forEach(function (k) { inputs[k] = eq; });
+    } else {
+      keys.forEach(function (k) { inputs[k] = inputs[k] / sum; });
+    }
+    keys.forEach(function (k) {
+      var el = document.querySelector('input[data-key="' + k + '"]');
+      if (el) el.value = inputs[k];
+    });
+  }
+
   function fmtNum(n, d) {
     return Number(n).toFixed(d);
   }
@@ -835,10 +856,10 @@
     ];
 
     const cwDefs = [
-      { key: 'alpha', label: 'Weight: α (profit)', min: 0.05, max: 0.7, step: 0.05 },
-      { key: 'beta', label: 'Weight: β (market share)', min: 0.05, max: 0.7, step: 0.05 },
-      { key: 'gamma', label: 'Weight: γ (innovation speed)', min: 0.05, max: 0.7, step: 0.05 },
-      { key: 'delta', label: 'Weight: δ (risk penalty)', min: 0.05, max: 0.7, step: 0.05 }
+      { key: 'alpha', label: 'Weight: α (profit)', min: 0, max: 1, step: 0.01, initial: 0.25 },
+      { key: 'beta', label: 'Weight: β (market share)', min: 0, max: 1, step: 0.01, initial: 0.25 },
+      { key: 'gamma', label: 'Weight: γ (innovation speed)', min: 0, max: 1, step: 0.01, initial: 0.25 },
+      { key: 'delta', label: 'Weight: δ (risk penalty)', min: 0, max: 1, step: 0.01, initial: 0.25 }
     ];
 
     const managerDefs = [
@@ -853,10 +874,11 @@
         readout: (v) => fmtNum(v, 1) + '<br>−L·p&amp;l=' + fmtNum(-inputs.L * v, 3) }
     ];
 
+    var w3 = 1 / 3;
     const mwDefs = [
-      { key: 'P', label: 'Weight: P', min: 0.05, max: 0.7, step: 0.05 },
-      { key: 'C', label: 'Weight: C', min: 0.05, max: 0.7, step: 0.05 },
-      { key: 'L', label: 'Weight: L', min: 0.05, max: 0.7, step: 0.05 }
+      { key: 'P', label: 'Weight: P', min: 0, max: 1, step: 0.01, initial: w3 },
+      { key: 'C', label: 'Weight: C', min: 0, max: 1, step: 0.01, initial: w3 },
+      { key: 'L', label: 'Weight: L', min: 0, max: 1, step: 0.01, initial: w3 }
     ];
 
     const empDefs = [
@@ -872,9 +894,9 @@
     ];
 
     const ewDefs = [
-      { key: 'A', label: 'Weight: A', min: 0.05, max: 0.7, step: 0.05 },
-      { key: 'M', label: 'Weight: M', min: 0.05, max: 0.7, step: 0.05 },
-      { key: 'W', label: 'Weight: W', min: 0.05, max: 0.7, step: 0.05 }
+      { key: 'A', label: 'Weight: A', min: 0, max: 1, step: 0.01, initial: w3 },
+      { key: 'M', label: 'Weight: M', min: 0, max: 1, step: 0.01, initial: w3 },
+      { key: 'W', label: 'Weight: W', min: 0, max: 1, step: 0.01, initial: w3 }
     ];
 
     const teamDefs = [
@@ -893,9 +915,9 @@
     ];
 
     const twDefs = [
-      { key: 'Ct', label: 'Weight: C (coordination)', min: 0.05, max: 0.7, step: 0.05 },
-      { key: 'It', label: 'Weight: I (decision speed)', min: 0.05, max: 0.7, step: 0.05 },
-      { key: 'Ft', label: 'Weight: F (friction)', min: 0.05, max: 0.7, step: 0.05 }
+      { key: 'Ct', label: 'Weight: C (coordination)', min: 0, max: 1, step: 0.01, initial: w3 },
+      { key: 'It', label: 'Weight: I (decision speed)', min: 0, max: 1, step: 0.01, initial: w3 },
+      { key: 'Ft', label: 'Weight: F (friction)', min: 0, max: 1, step: 0.01, initial: w3 }
     ];
 
     function injectRows(containerId, defs) {
@@ -950,10 +972,12 @@
       const readout = document.createElement('div');
       readout.className = 'readout';
       readout.id = 'ro-' + def.key;
-      inputs[def.key] = def.min;
-      range.value = def.min;
+      var cStart = def.initial !== undefined ? def.initial : def.min;
+      inputs[def.key] = cStart;
+      range.value = cStart;
       range.addEventListener('input', function () {
         inputs[def.key] = parseFloat(range.value);
+        normalizeWeightGroup(WEIGHT_KEYS.company);
         syncPresetToCustom();
         refreshAll();
       });
@@ -979,10 +1003,12 @@
       const readout = document.createElement('div');
       readout.className = 'readout';
       readout.id = 'ro-' + def.key;
-      inputs[def.key] = def.min;
-      range.value = def.min;
+      var mStart = def.initial !== undefined ? def.initial : def.min;
+      inputs[def.key] = mStart;
+      range.value = mStart;
       range.addEventListener('input', function () {
         inputs[def.key] = parseFloat(range.value);
+        normalizeWeightGroup(WEIGHT_KEYS.manager);
         syncPresetToCustom();
         refreshAll();
       });
@@ -1008,10 +1034,12 @@
       const readout = document.createElement('div');
       readout.className = 'readout';
       readout.id = 'ro-' + def.key;
-      inputs[def.key] = def.min;
-      range.value = def.min;
+      var eStart = def.initial !== undefined ? def.initial : def.min;
+      inputs[def.key] = eStart;
+      range.value = eStart;
       range.addEventListener('input', function () {
         inputs[def.key] = parseFloat(range.value);
+        normalizeWeightGroup(WEIGHT_KEYS.employee);
         syncPresetToCustom();
         refreshAll();
       });
@@ -1037,10 +1065,12 @@
       const readout = document.createElement('div');
       readout.className = 'readout';
       readout.id = 'ro-' + def.key;
-      inputs[def.key] = def.min;
-      range.value = def.min;
+      var tStart = def.initial !== undefined ? def.initial : def.min;
+      inputs[def.key] = tStart;
+      range.value = tStart;
       range.addEventListener('input', function () {
         inputs[def.key] = parseFloat(range.value);
+        normalizeWeightGroup(WEIGHT_KEYS.team);
         syncPresetToCustom();
         refreshAll();
       });
@@ -1100,6 +1130,10 @@
     setInputElement('Ct', p.Ct);
     setInputElement('It', p.It);
     setInputElement('Ft', p.Ft);
+    normalizeWeightGroup(WEIGHT_KEYS.company);
+    normalizeWeightGroup(WEIGHT_KEYS.manager);
+    normalizeWeightGroup(WEIGHT_KEYS.employee);
+    normalizeWeightGroup(WEIGHT_KEYS.team);
     presetLabel = p.label;
     document.getElementById('footPreset').textContent = presetLabel;
   }
@@ -1282,7 +1316,7 @@
 
     ['alpha','beta','gamma','delta','P','C','L','A','M','W','Ct','It','Ft'].forEach(function (k) {
       const ro = document.getElementById('ro-' + k);
-      if (ro) ro.textContent = fmtNum(inputs[k], 2);
+      if (ro) ro.textContent = fmtNum(inputs[k], 3);
     });
   }
 
