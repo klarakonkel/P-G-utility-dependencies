@@ -1,0 +1,1752 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>P&G Organizational Utility Explorer</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+  <style>
+    :root {
+      --bg: #ffffff;
+      --text: #1a1a1a;
+      --muted: #6b6b6b;
+      --accent: #1a1a1a;
+      --conflict: #c0392b;
+      --align: #1a7a4a;
+      --neutral-gray: #888780;
+      --sidebar-w: 280px;
+      --footer-h: 64px;
+      --dot-company: #ba7517;
+      --dot-manager: #d85a30;
+      --dot-employee: #1d9e75;
+      --dot-team: #7f77dd;
+      --dot-interactions: #888780;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-size: 15px;
+      line-height: 1.7;
+      color: var(--text);
+      background: var(--bg);
+    }
+
+    .app-wrap {
+      min-height: 100vh;
+      padding-bottom: var(--footer-h);
+    }
+
+    .layout {
+      display: flex;
+      min-height: calc(100vh - var(--footer-h));
+    }
+
+    aside.sidebar {
+      width: var(--sidebar-w);
+      flex-shrink: 0;
+      border-right: 1px solid #e8e8e6;
+      padding: 1.25rem 1rem 2rem;
+      position: sticky;
+      top: 0;
+      align-self: flex-start;
+      min-height: calc(100vh - var(--footer-h));
+    }
+
+    .sidebar-title {
+      font-size: 13px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      font-weight: 500;
+      margin: 0 0 1rem;
+      color: var(--text);
+    }
+
+    .preset-wrap {
+      margin-bottom: 1.5rem;
+    }
+
+    .preset-wrap label {
+      display: block;
+      font-size: 12px;
+      color: var(--muted);
+      margin-bottom: 0.35rem;
+      font-weight: 500;
+    }
+
+    select.preset-select {
+      width: 100%;
+      padding: 0.5rem 0.65rem;
+      font-size: 13px;
+      font-family: inherit;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      background: var(--bg);
+      color: var(--text);
+      cursor: pointer;
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%236b6b6b' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 0.6rem center;
+      padding-right: 1.75rem;
+    }
+
+    nav.side-nav {
+      display: flex;
+      flex-direction: column;
+      gap: 0.25rem;
+    }
+
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.55rem 0.5rem;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--text);
+      border: none;
+      background: transparent;
+      width: 100%;
+      text-align: left;
+      font-family: inherit;
+    }
+
+    .nav-item:hover {
+      background: #f5f5f3;
+    }
+
+    .nav-item.active {
+      background: #f0f0ed;
+      outline: 1px solid #ddd;
+    }
+
+    .nav-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .nav-dot.company { background: var(--dot-company); }
+    .nav-dot.manager { background: var(--dot-manager); }
+    .nav-dot.employee { background: var(--dot-employee); }
+    .nav-dot.team { background: var(--dot-team); }
+    .nav-dot.interactions { background: var(--dot-interactions); }
+
+    main.main-area {
+      flex: 1;
+      min-width: 0;
+      padding: 1.25rem 1.5rem 2rem;
+      max-width: calc(100vw - var(--sidebar-w));
+    }
+
+    .help-btn {
+      position: fixed;
+      top: 12px;
+      right: 16px;
+      z-index: 50;
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      border: 1px solid #ccc;
+      background: var(--bg);
+      color: var(--muted);
+      font-size: 15px;
+      font-weight: 500;
+      cursor: pointer;
+      line-height: 1;
+      padding: 0;
+      font-family: inherit;
+    }
+
+    .help-btn:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    .tab-panel {
+      display: none;
+      max-width: 920px;
+    }
+
+    .tab-panel.active {
+      display: block;
+    }
+
+    h1.panel-h1 {
+      font-size: 1.35rem;
+      font-weight: 500;
+      margin: 0 0 0.35rem;
+      line-height: 1.35;
+    }
+
+    .subhead {
+      color: var(--muted);
+      font-size: 14px;
+      margin: 0 0 1.25rem;
+    }
+
+    .subhead.formula {
+      font-size: 15px;
+      line-height: 1.65;
+    }
+
+    .formula {
+      font-size: 15px;
+      margin: 0 0 1.25rem;
+      line-height: 1.6;
+    }
+
+    .formula sub {
+      vertical-align: sub;
+      font-size: 0.75em;
+    }
+
+    .slider-block {
+      margin-bottom: 1.75rem;
+    }
+
+    .slider-row {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      margin-bottom: 0.85rem;
+      flex-wrap: wrap;
+    }
+
+    .slider-label-cell {
+      width: 140px;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+      font-size: 14px;
+      font-weight: 500;
+    }
+
+    .tooltip-wrap {
+      position: relative;
+      display: inline-flex;
+    }
+
+    .tooltip-icon {
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      border: 1px solid #bbb;
+      font-size: 10px;
+      line-height: 14px;
+      text-align: center;
+      color: var(--muted);
+      cursor: help;
+      flex-shrink: 0;
+      font-weight: 500;
+    }
+
+    .tooltip-wrap:hover .tooltip-bubble,
+    .tooltip-icon:focus + .tooltip-bubble {
+      opacity: 1;
+      visibility: visible;
+    }
+
+    .tooltip-bubble {
+      position: absolute;
+      left: 0;
+      bottom: calc(100% + 8px);
+      width: 260px;
+      padding: 0.5rem 0.65rem;
+      background: var(--text);
+      color: var(--bg);
+      font-size: 12px;
+      line-height: 1.45;
+      font-weight: 400;
+      border-radius: 4px;
+      opacity: 0;
+      visibility: hidden;
+      z-index: 20;
+      pointer-events: none;
+    }
+
+    .slider-row input[type="range"] {
+      flex: 1;
+      min-width: 120px;
+    }
+
+    .readout {
+      width: 60px;
+      flex-shrink: 0;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 11px;
+      line-height: 1.25;
+      text-align: right;
+      color: var(--text);
+    }
+
+    .readout-wide {
+      width: 140px;
+      font-size: 10px;
+    }
+
+    .weights-note {
+      font-size: 13px;
+      color: var(--muted);
+      margin: 0.5rem 0 1rem;
+    }
+
+    .section-label {
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--muted);
+      margin: 1.25rem 0 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .chart-box {
+      height: 220px;
+      margin: 1rem 0;
+      position: relative;
+    }
+
+    .chart-row-emp {
+      display: flex;
+      gap: 1rem;
+      flex-wrap: wrap;
+      margin: 1rem 0;
+    }
+
+    .chart-box-half {
+      flex: 1;
+      min-width: 280px;
+      height: 220px;
+      position: relative;
+    }
+
+    .breakdown-bar {
+      display: flex;
+      height: 36px;
+      border-radius: 4px;
+      overflow: hidden;
+      margin: 1rem 0 0.5rem;
+      border: 1px solid #e0e0dd;
+    }
+
+    .breakdown-seg {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 10px;
+      color: #fff;
+      min-width: 2px;
+    }
+
+    .breakdown-seg.amber { background: #ba7517; }
+    .breakdown-seg.teal { background: #1d9e75; }
+    .breakdown-seg.green { background: #1a7a4a; }
+    .breakdown-seg.red { background: #c0392b; }
+
+    .breakdown-values {
+      display: flex;
+      gap: 1rem;
+      flex-wrap: wrap;
+      font-size: 12px;
+      font-family: ui-monospace, monospace;
+      margin-bottom: 1rem;
+    }
+
+    .total-ux {
+      font-family: ui-monospace, monospace;
+      font-size: 24px;
+      font-weight: 500;
+      margin: 1rem 0 0;
+    }
+
+    .conflict-panel {
+      border: 1px solid #e0e0dd;
+      border-radius: 6px;
+      padding: 1rem;
+      margin: 1rem 0;
+    }
+
+    .conflict-meter {
+      height: 14px;
+      border-radius: 7px;
+      background: linear-gradient(to right, var(--align) 0%, #c9a227 50%, var(--conflict) 100%);
+      position: relative;
+      margin: 0.75rem 0;
+    }
+
+    .conflict-marker {
+      position: absolute;
+      top: -4px;
+      width: 4px;
+      height: 22px;
+      background: var(--text);
+      border-radius: 2px;
+      transform: translateX(-50%);
+    }
+
+    .conflict-label {
+      font-size: 14px;
+      font-weight: 500;
+      margin: 0;
+    }
+
+    .conflict-label.green { color: var(--align); }
+    .conflict-label.amber { color: #b8860b; }
+    .conflict-label.red { color: var(--conflict); }
+
+    .conflict-ref {
+      font-size: 12px;
+      color: var(--muted);
+      margin: 0.5rem 0 0;
+    }
+
+    .note-italic {
+      font-style: italic;
+      color: var(--muted);
+      font-size: 13px;
+      margin: 1rem 0;
+    }
+
+    .grid-interactions {
+      display: grid;
+      grid-template-columns: 140px repeat(3, 1fr);
+      gap: 0.5rem;
+      margin: 1rem 0;
+      font-size: 12px;
+      min-width: 0;
+    }
+
+    .grid-interactions .gh {
+      font-weight: 500;
+      padding: 0.35rem;
+      border-bottom: 1px solid #ddd;
+    }
+
+    .grid-interactions .cell-card {
+      border: 0.5px solid #c8c8c4;
+      border-radius: 6px;
+      padding: 0.5rem 0.6rem;
+      background: #fafaf9;
+    }
+
+    .grid-interactions .row-label {
+      font-size: 11px;
+      color: var(--muted);
+      padding: 0.35rem;
+      align-self: center;
+    }
+
+    .badge {
+      display: inline-block;
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      padding: 0.15rem 0.4rem;
+      border-radius: 3px;
+      margin-top: 0.35rem;
+      font-weight: 500;
+    }
+
+    .badge.conflict { background: #fde8e6; color: var(--conflict); }
+    .badge.aligns { background: #e0f5ee; color: #1d9e75; }
+    .badge.neutral { background: #ecece8; color: var(--neutral-gray); }
+
+    .cascade-svg {
+      margin: 1.5rem 0;
+      max-width: 100%;
+    }
+
+    .align-total {
+      font-family: ui-monospace, monospace;
+      font-size: 22px;
+      font-weight: 500;
+      margin: 0.5rem 0;
+    }
+
+    .align-caption {
+      font-size: 13px;
+      color: var(--muted);
+      max-width: 640px;
+      line-height: 1.55;
+    }
+
+    footer.app-footer {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: var(--footer-h);
+      border-top: 1px solid #e5e5e2;
+      background: var(--bg);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 1rem 0 calc(var(--sidebar-w) + 1rem);
+      z-index: 40;
+      gap: 1rem;
+    }
+
+    .footer-left {
+      display: flex;
+      gap: 1.25rem;
+      flex-wrap: wrap;
+      font-size: 12px;
+    }
+
+    .footer-left span {
+      font-family: ui-monospace, monospace;
+    }
+
+    .footer-center {
+      font-size: 20px;
+      font-family: ui-monospace, monospace;
+      font-weight: 500;
+      flex: 1;
+      text-align: center;
+      min-width: 0;
+    }
+
+    .footer-right {
+      font-size: 12px;
+      color: var(--muted);
+      max-width: 200px;
+      text-align: right;
+    }
+
+    .modal-backdrop {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.35);
+      z-index: 100;
+      align-items: center;
+      justify-content: center;
+      padding: 1rem;
+    }
+
+    .modal-backdrop.open {
+      display: flex;
+    }
+
+    .modal {
+      background: var(--bg);
+      max-width: 420px;
+      padding: 1.25rem 1.5rem;
+      border-radius: 8px;
+      border: 1px solid #ddd;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.12);
+    }
+
+    .modal h2 {
+      font-size: 16px;
+      font-weight: 500;
+      margin: 0 0 0.75rem;
+    }
+
+    .modal p {
+      margin: 0;
+      font-size: 14px;
+      color: var(--text);
+      line-height: 1.65;
+    }
+
+    .modal-close {
+      margin-top: 1rem;
+      padding: 0.4rem 0.9rem;
+      font-family: inherit;
+      cursor: pointer;
+      border: 1px solid #ccc;
+      background: var(--bg);
+      border-radius: 4px;
+      font-size: 13px;
+    }
+
+    @media (max-width: 900px) {
+      .layout {
+        flex-direction: column;
+      }
+      aside.sidebar {
+        width: 100%;
+        position: relative;
+        min-height: 0;
+        border-right: none;
+        border-bottom: 1px solid #e8e8e6;
+      }
+      main.main-area {
+        max-width: 100vw;
+      }
+      footer.app-footer {
+        flex-wrap: wrap;
+        height: auto;
+        min-height: var(--footer-h);
+        padding: 0.5rem 0.75rem;
+        padding-left: 0.75rem;
+      }
+      .footer-center {
+        order: -1;
+        width: 100%;
+        flex: none;
+      }
+    }
+  </style>
+</head>
+<body>
+  <button type="button" class="help-btn" id="helpBtn" aria-label="About this framework">?</button>
+
+  <div class="modal-backdrop" id="modalBackdrop" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+    <div class="modal">
+      <h2 id="modalTitle">Utility framework</h2>
+      <p>
+        This explorer implements a stylized multi-level utility model from the thesis: company strategic utility combines concave profit and market-share terms with innovation speed and a variance penalty; manager, employee, and team utilities capture stakeholder incentives that may align or conflict with that strategy.
+      </p>
+      <p style="margin-top:0.75rem">
+        Sliders let you reproduce historical presets or test counterfactuals; charts hold other inputs fixed to show partial relationships. Alignment scores summarize tension between a company objective component and each stakeholder utility—useful for narrative, not forecasting.
+      </p>
+      <button type="button" class="modal-close" id="modalClose">Close</button>
+    </div>
+  </div>
+
+  <div class="app-wrap">
+    <div class="layout">
+      <aside class="sidebar">
+        <h1 class="sidebar-title">P&G Utility Explorer</h1>
+        <div class="preset-wrap">
+          <label for="presetSelect">Scenario preset</label>
+          <select id="presetSelect" class="preset-select">
+            <option value="custom">Custom (manual)</option>
+            <option value="global-matrix">Global matrix (1987–1995)</option>
+            <option value="org2005">Organization 2005 (1999)</option>
+            <option value="jager">Jager era (1999–2000)</option>
+            <option value="proposed">Proposed: differentiated self-management</option>
+          </select>
+        </div>
+        <nav class="side-nav" role="tablist" aria-label="Main sections">
+          <button type="button" class="nav-item active" data-tab="tab-company" role="tab" aria-selected="true">
+            <span class="nav-dot company"></span> Company utility
+          </button>
+          <button type="button" class="nav-item" data-tab="tab-manager" role="tab" aria-selected="false">
+            <span class="nav-dot manager"></span> Manager utility
+          </button>
+          <button type="button" class="nav-item" data-tab="tab-employee" role="tab" aria-selected="false">
+            <span class="nav-dot employee"></span> Employee utility
+          </button>
+          <button type="button" class="nav-item" data-tab="tab-team" role="tab" aria-selected="false">
+            <span class="nav-dot team"></span> Team utility
+          </button>
+          <button type="button" class="nav-item" data-tab="tab-interactions" role="tab" aria-selected="false">
+            <span class="nav-dot interactions"></span> Utility interactions
+          </button>
+        </nav>
+      </aside>
+
+      <main class="main-area">
+        <section id="tab-company" class="tab-panel active" role="tabpanel">
+          <h1 class="panel-h1">1.2.1 Company (strategic) utility</h1>
+          <p class="subhead formula">
+            U(x) = <span>α</span>·ln(π) + <span>β</span>·√(MS) + <span>γ</span>·(1/T<sub>g</sub>) − <span>δ</span>·σ<sup>2</sup><sub>π</sub>
+          </p>
+
+          <div class="slider-block" id="companySliders"></div>
+          <p class="section-label">Weights</p>
+          <div id="companyWeights"></div>
+          <p class="weights-note">Note: weights are independent parameters — they need not sum to 1.</p>
+
+          <div class="chart-box"><canvas id="chartCompany"></canvas></div>
+
+          <p class="section-label">Component breakdown</p>
+          <div class="breakdown-bar" id="breakdownBar"></div>
+          <div class="breakdown-values" id="breakdownValues"></div>
+
+          <p class="total-ux" id="totalCompany">Total U(x) = <span id="totalCompanyVal">0</span></p>
+        </section>
+
+        <section id="tab-manager" class="tab-panel" role="tabpanel" hidden>
+          <h1 class="panel-h1">Manager utility</h1>
+          <p class="formula">U<sub>manager</sub> = P·job_security + C·career_advancement − L·p&amp;l_risk</p>
+          <div class="slider-block" id="managerSliders"></div>
+          <p class="section-label">Weights</p>
+          <div id="managerWeights"></div>
+
+          <div class="conflict-panel">
+            <p style="margin:0 0 0.25rem;font-size:13px;color:var(--muted)">Conflict meter (vs company innovation speed γ/T<sub>g</sub>)</p>
+            <div class="conflict-meter" id="conflictMeter">
+              <div class="conflict-marker" id="conflictMarker"></div>
+            </div>
+            <p class="conflict-label" id="conflictText">—</p>
+            <p class="conflict-ref" id="conflictRef"></p>
+          </div>
+
+          <div class="chart-box"><canvas id="chartManager"></canvas></div>
+          <p class="total-ux">U<sub>manager</sub> = <span id="totalManagerVal">0</span></p>
+        </section>
+
+        <section id="tab-employee" class="tab-panel" hidden>
+          <h1 class="panel-h1">Employee utility</h1>
+          <p class="formula">U<sub>emp</sub> = A·√(autonomy) + M·meaning − W·overload</p>
+          <div class="slider-block" id="employeeSliders"></div>
+          <p class="section-label">Weights</p>
+          <div id="employeeWeights"></div>
+
+          <div class="chart-row-emp">
+            <div class="chart-box-half"><canvas id="chartEmpAuto"></canvas></div>
+            <div class="chart-box-half"><canvas id="chartEmpOverload"></canvas></div>
+          </div>
+          <p class="note-italic">Note: the concave autonomy curve explains why Org 2005's abrupt removal of structure raised overload faster than it raised autonomy gains — net employee utility fell during transition.</p>
+          <p class="total-ux">U<sub>emp</sub> = <span id="totalEmployeeVal">0</span></p>
+        </section>
+
+        <section id="tab-team" class="tab-panel" hidden>
+          <h1 class="panel-h1">Team utility</h1>
+          <p class="formula">U<sub>team</sub> = C·coordination_quality + I·(1/decision_time) − F·friction</p>
+          <div class="slider-block" id="teamSliders"></div>
+          <p class="section-label">Weights</p>
+          <div id="teamWeights"></div>
+
+          <div class="chart-box" style="height:260px"><canvas id="chartTeam"></canvas></div>
+          <p class="total-ux">U<sub>team</sub> = <span id="totalTeamVal">0</span></p>
+        </section>
+
+        <section id="tab-interactions" class="tab-panel" hidden>
+          <h1 class="panel-h1">Utility interactions</h1>
+          <p class="subhead">How stakeholder utilities align with or oppose company strategic objectives</p>
+          <div class="grid-interactions" id="interactionGrid"></div>
+          <svg class="cascade-svg" viewBox="0 0 720 140" xmlns="http://www.w3.org/2000/svg" aria-label="Historical cascade diagram">
+            <defs>
+              <marker id="arr" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto">
+                <path d="M0,0 L8,4 L0,8 z" fill="#1a1a1a" />
+              </marker>
+            </defs>
+            <rect x="10" y="30" width="200" height="44" rx="6" fill="#fde8e6" stroke="#c0392b" stroke-width="1" />
+            <text x="110" y="57" text-anchor="middle" font-size="11" font-family="system-ui,sans-serif" fill="#1a1a1a">Matrix conflict: γ/T_g vs −L·p&amp;l_risk</text>
+            <line x1="210" y1="52" x2="248" y2="52" stroke="#1a1a1a" stroke-width="1.2" marker-end="url(#arr)" />
+            <rect x="250" y="30" width="200" height="44" rx="6" fill="#f5e6d3" stroke="#ba7517" stroke-width="1" />
+            <text x="350" y="57" text-anchor="middle" font-size="11" font-family="system-ui,sans-serif" fill="#1a1a1a">Org 2005 fix: removes veto layer</text>
+            <line x1="450" y1="52" x2="488" y2="52" stroke="#1a1a1a" stroke-width="1.2" marker-end="url(#arr)" />
+            <rect x="490" y="30" width="210" height="44" rx="6" fill="#fde8e6" stroke="#c0392b" stroke-width="1" />
+            <text x="595" y="52" text-anchor="middle" font-size="11" font-family="system-ui,sans-serif" fill="#1a1a1a">Consequence: −W·overload + −F·friction</text>
+            <text x="595" y="66" text-anchor="middle" font-size="11" font-family="system-ui,sans-serif" fill="#1a1a1a">spike</text>
+            <line x1="595" y1="85" x2="595" y2="98" stroke="#1a1a1a" stroke-width="1" />
+            <rect x="485" y="100" width="220" height="32" rx="6" fill="#f5f5f3" stroke="#888780" stroke-width="1" />
+            <text x="595" y="120" text-anchor="middle" font-size="11" font-family="system-ui,sans-serif" fill="#c0392b">Result: σ²_π spikes</text>
+          </svg>
+          <p style="margin:0;font-size:13px;color:var(--muted)">Total system alignment score</p>
+          <p class="align-total" id="systemAlignTotal">0</p>
+          <p class="align-caption">When this is positive, organizational design and individual incentives reinforce each other. When negative, individual rationality undermines company strategy — as in P&G 1995–2000.</p>
+        </section>
+      </main>
+    </div>
+  </div>
+
+  <footer class="app-footer">
+    <div class="footer-left">
+      <span>U<sub>manager</sub> <span id="footManager">0</span></span>
+      <span>U<sub>emp</sub> <span id="footEmployee">0</span></span>
+      <span>U<sub>team</sub> <span id="footTeam">0</span></span>
+    </div>
+    <div class="footer-center">U_company = <span id="footCompany">0</span></div>
+    <div class="footer-right" id="footPreset">Custom (manual)</div>
+  </footer>
+
+  <script>
+(function () {
+  'use strict';
+
+  const PRESETS = {
+    'global-matrix': {
+      pi: 35000, MS: 28, Tg: 4, sigma2: 2, alpha: 0.4, beta: 0.25, gamma: 0.2, delta: 0.15,
+      job_security: 7, career_advancement: 8, pnl_risk: 8, P: 0.3, C: 0.35, L: 0.35,
+      autonomy: 4, meaning: 5, overload: 6, A: 0.35, M: 0.35, W: 0.3,
+      coord: 4, decision_time: 4, friction: 7, Ct: 0.33, It: 0.33, Ft: 0.34,
+      label: 'Global matrix (1987–1995)'
+    },
+    'org2005': {
+      pi: 38000, MS: 25, Tg: 3, sigma2: 6, alpha: 0.4, beta: 0.25, gamma: 0.25, delta: 0.1,
+      job_security: 3, career_advancement: 5, pnl_risk: 4, P: 0.3, C: 0.35, L: 0.35,
+      autonomy: 7, meaning: 3, overload: 8, A: 0.35, M: 0.35, W: 0.3,
+      coord: 5, decision_time: 3, friction: 8, Ct: 0.33, It: 0.33, Ft: 0.34,
+      label: 'Organization 2005 (1999)'
+    },
+    jager: {
+      pi: 30000, MS: 22, Tg: 2, sigma2: 12, alpha: 0.15, beta: 0.2, gamma: 0.5, delta: 0.15,
+      job_security: 2, career_advancement: 3, pnl_risk: 2, P: 0.3, C: 0.35, L: 0.35,
+      autonomy: 8, meaning: 2, overload: 9, A: 0.35, M: 0.35, W: 0.3,
+      coord: 4, decision_time: 2, friction: 9, Ct: 0.33, It: 0.33, Ft: 0.34,
+      label: 'Jager era (1999–2000)'
+    },
+    proposed: {
+      pi: 42000, MS: 32, Tg: 1.5, sigma2: 2, alpha: 0.4, beta: 0.25, gamma: 0.2, delta: 0.15,
+      job_security: 6, career_advancement: 7, pnl_risk: 2, P: 0.3, C: 0.35, L: 0.35,
+      autonomy: 7, meaning: 8, overload: 3, A: 0.35, M: 0.35, W: 0.3,
+      coord: 8, decision_time: 1.5, friction: 2, Ct: 0.33, It: 0.33, Ft: 0.34,
+      label: 'Proposed: differentiated self-management'
+    }
+  };
+
+  const inputs = {};
+  let charts = {};
+  let presetLabel = 'Custom (manual)';
+
+  function fmtNum(n, d) {
+    return Number(n).toFixed(d);
+  }
+
+  function fmtMoney(m) {
+    return '$' + Math.round(m).toLocaleString('en-US') + 'M';
+  }
+
+  /* Builds all slider rows and weight controls and wires input listeners */
+  function buildSliders() {
+    const companyDefs = [
+      { key: 'pi', label: 'π — Net earnings ($M)', min: 500, max: 50000, step: 100,
+        tooltip: 'Entered as ln(π) — each additional dollar of profit matters less than the last. Risk-averse posture.',
+        readout: (v) => {
+          const t = inputs.alpha * Math.log(v);
+          return fmtMoney(v) + '<br>α·ln(π)=' + fmtNum(t, 3);
+        } },
+      { key: 'MS', label: 'MS — Market share (%)', min: 1, max: 80, step: 1,
+        tooltip: 'Entered as √MS — gains are concave; jumping from 5% to 15% matters more than 55% to 65%.',
+        readout: (v) => {
+          const t = inputs.beta * Math.sqrt(v);
+          return v + '%<br>β·√MS=' + fmtNum(t, 3);
+        } },
+      { key: 'Tg', label: 'T_g — Years to globalize', min: 1, max: 15, step: 0.5,
+        tooltip: 'Entered as 1/T_g — reducing from 10 to 4 years produces a larger utility gain than 4 to 3.',
+        readout: (v) => {
+          const t = inputs.gamma * (1 / v);
+          return fmtNum(v, 1) + ' yr<br>γ/T_g=' + fmtNum(t, 3);
+        } },
+      { key: 'sigma2', label: 'σ²_π — Earnings variance', min: 0, max: 15, step: 0.5,
+        tooltip: 'Penalty term. High variance is catastrophically punished — P&G lost 30% of stock value in a single day in March 2000.',
+        readout: (v) => {
+          const t = -inputs.delta * v;
+          return fmtNum(v, 1) + '<br>−δ·σ²=' + fmtNum(t, 3);
+        } }
+    ];
+
+    const cwDefs = [
+      { key: 'alpha', label: 'Weight: α (profit)', min: 0.05, max: 0.7, step: 0.05 },
+      { key: 'beta', label: 'Weight: β (market share)', min: 0.05, max: 0.7, step: 0.05 },
+      { key: 'gamma', label: 'Weight: γ (innovation speed)', min: 0.05, max: 0.7, step: 0.05 },
+      { key: 'delta', label: 'Weight: δ (risk penalty)', min: 0.05, max: 0.7, step: 0.05 }
+    ];
+
+    const managerDefs = [
+      { key: 'job_security', label: 'job_security', min: 0, max: 10, step: 0.1,
+        tooltip: 'Regional and category managers derived utility from maintaining position and power. Made dominant during Org 2005\'s elimination of 6 management layers.',
+        readout: (v) => fmtNum(v, 1) + '<br>P·js=' + fmtNum(inputs.P * v, 3) },
+      { key: 'career_advancement', label: 'career_advancement', min: 0, max: 10, step: 0.1,
+        tooltip: 'Under the matrix, career progression stayed in regional line management hands — managers optimized for silo visibility over global outcomes.',
+        readout: (v) => fmtNum(v, 1) + '<br>C·ca=' + fmtNum(inputs.C * v, 3) },
+      { key: 'pnl_risk', label: 'p&l_risk', min: 0, max: 10, step: 0.1,
+        tooltip: 'The critical term. Cover Girl acquired 1989, still not globalized by 1997 — no regional manager wanted the margin dilution on their P&L.',
+        readout: (v) => fmtNum(v, 1) + '<br>−L·p&amp;l=' + fmtNum(-inputs.L * v, 3) }
+    ];
+
+    const mwDefs = [
+      { key: 'P', label: 'Weight: P', min: 0.05, max: 0.7, step: 0.05 },
+      { key: 'C', label: 'Weight: C', min: 0.05, max: 0.7, step: 0.05 },
+      { key: 'L', label: 'Weight: L', min: 0.05, max: 0.7, step: 0.05 }
+    ];
+
+    const empDefs = [
+      { key: 'autonomy', label: 'autonomy', min: 0, max: 10, step: 0.1,
+        tooltip: 'First gains from self-determination produce very high utility gains (diminishing marginal returns) — but high autonomy with limited structure overwhelms workers.',
+        readout: (v) => fmtNum(v, 1) + '<br>A·√a=' + fmtNum(inputs.A * Math.sqrt(Math.max(0, v)), 3) },
+      { key: 'meaning', label: 'meaning', min: 0, max: 10, step: 0.1,
+        tooltip: 'Linear term — more purpose is consistently better. Org 2005\'s 15,000 job cuts and role ambiguity destroyed this term during transition.',
+        readout: (v) => fmtNum(v, 1) + '<br>M·m=' + fmtNum(inputs.M * v, 3) },
+      { key: 'overload', label: 'overload', min: 0, max: 10, step: 0.1,
+        tooltip: 'Org 2005 gave structural freedom without clear accountability — leading to anxiety rather than liberation.',
+        readout: (v) => fmtNum(v, 1) + '<br>−W·ol=' + fmtNum(-inputs.W * v, 3) }
+    ];
+
+    const ewDefs = [
+      { key: 'A', label: 'Weight: A', min: 0.05, max: 0.7, step: 0.05 },
+      { key: 'M', label: 'Weight: M', min: 0.05, max: 0.7, step: 0.05 },
+      { key: 'W', label: 'Weight: W', min: 0.05, max: 0.7, step: 0.05 }
+    ];
+
+    const teamDefs = [
+      { key: 'coord', label: 'coordination_quality', min: 0, max: 10, step: 0.1,
+        tooltip: 'Under the global matrix, functions developed independent agendas — product supply vs R&D optimizing conflicting parameters.',
+        readout: (v) => fmtNum(v, 1) + '<br>C·cq=' + fmtNum(inputs.Ct * v, 3) },
+      { key: 'decision_time', label: 'decision_time', min: 0.5, max: 15, step: 0.5,
+        tooltip: 'Under the matrix, regional manager approval was required for any cross-border decision. Entered as reciprocal — lower time = higher utility.',
+        readout: (v) => {
+          const inv = 1 / v;
+          return fmtNum(v, 1) + ' yr<br>I/T=' + fmtNum(inputs.It * inv, 3);
+        } },
+      { key: 'friction', label: 'friction', min: 0, max: 10, step: 0.1,
+        tooltip: 'Duplicated reporting lines, conflicting incentives, ambiguous accountability. Germany alone had ~12 category GMs by mid-1990s.',
+        readout: (v) => fmtNum(v, 1) + '<br>−F·fr=' + fmtNum(-inputs.Ft * v, 3) }
+    ];
+
+    const twDefs = [
+      { key: 'Ct', label: 'Weight: C (coordination)', min: 0.05, max: 0.7, step: 0.05 },
+      { key: 'It', label: 'Weight: I (decision speed)', min: 0.05, max: 0.7, step: 0.05 },
+      { key: 'Ft', label: 'Weight: F (friction)', min: 0.05, max: 0.7, step: 0.05 }
+    ];
+
+    function injectRows(containerId, defs) {
+      const el = document.getElementById(containerId);
+      el.innerHTML = '';
+      defs.forEach(function (def) {
+        const row = document.createElement('div');
+        row.className = 'slider-row';
+        const lab = document.createElement('div');
+        lab.className = 'slider-label-cell';
+        lab.innerHTML = def.label;
+        const tip = document.createElement('span');
+        tip.className = 'tooltip-wrap';
+        tip.innerHTML = '<span class="tooltip-icon" tabindex="0">?</span><span class="tooltip-bubble">' + def.tooltip + '</span>';
+        lab.appendChild(tip);
+        const range = document.createElement('input');
+        range.type = 'range';
+        range.min = def.min;
+        range.max = def.max;
+        range.step = def.step;
+        range.dataset.key = def.key;
+        const readout = document.createElement('div');
+        readout.className = 'readout readout-wide';
+        readout.id = 'ro-' + def.key;
+        inputs[def.key] = def.min;
+        range.value = def.min;
+        range.addEventListener('input', function () {
+          inputs[def.key] = parseFloat(range.value);
+          syncPresetToCustom();
+          refreshAll();
+        });
+        row.appendChild(lab);
+        row.appendChild(range);
+        row.appendChild(readout);
+        el.appendChild(row);
+      });
+    }
+
+    injectRows('companySliders', companyDefs);
+    cwDefs.forEach(function (def) {
+      const row = document.createElement('div');
+      row.className = 'slider-row';
+      const lab = document.createElement('div');
+      lab.className = 'slider-label-cell';
+      lab.textContent = def.label;
+      const range = document.createElement('input');
+      range.type = 'range';
+      range.min = def.min;
+      range.max = def.max;
+      range.step = def.step;
+      range.dataset.key = def.key;
+      const readout = document.createElement('div');
+      readout.className = 'readout';
+      readout.id = 'ro-' + def.key;
+      inputs[def.key] = def.min;
+      range.value = def.min;
+      range.addEventListener('input', function () {
+        inputs[def.key] = parseFloat(range.value);
+        syncPresetToCustom();
+        refreshAll();
+      });
+      row.appendChild(lab);
+      row.appendChild(range);
+      row.appendChild(readout);
+      document.getElementById('companyWeights').appendChild(row);
+    });
+
+    injectRows('managerSliders', managerDefs);
+    mwDefs.forEach(function (def) {
+      const row = document.createElement('div');
+      row.className = 'slider-row';
+      const lab = document.createElement('div');
+      lab.className = 'slider-label-cell';
+      lab.textContent = def.label;
+      const range = document.createElement('input');
+      range.type = 'range';
+      range.min = def.min;
+      range.max = def.max;
+      range.step = def.step;
+      range.dataset.key = def.key;
+      const readout = document.createElement('div');
+      readout.className = 'readout';
+      readout.id = 'ro-' + def.key;
+      inputs[def.key] = def.min;
+      range.value = def.min;
+      range.addEventListener('input', function () {
+        inputs[def.key] = parseFloat(range.value);
+        syncPresetToCustom();
+        refreshAll();
+      });
+      row.appendChild(lab);
+      row.appendChild(range);
+      row.appendChild(readout);
+      document.getElementById('managerWeights').appendChild(row);
+    });
+
+    injectRows('employeeSliders', empDefs);
+    ewDefs.forEach(function (def) {
+      const row = document.createElement('div');
+      row.className = 'slider-row';
+      const lab = document.createElement('div');
+      lab.className = 'slider-label-cell';
+      lab.textContent = def.label;
+      const range = document.createElement('input');
+      range.type = 'range';
+      range.min = def.min;
+      range.max = def.max;
+      range.step = def.step;
+      range.dataset.key = def.key;
+      const readout = document.createElement('div');
+      readout.className = 'readout';
+      readout.id = 'ro-' + def.key;
+      inputs[def.key] = def.min;
+      range.value = def.min;
+      range.addEventListener('input', function () {
+        inputs[def.key] = parseFloat(range.value);
+        syncPresetToCustom();
+        refreshAll();
+      });
+      row.appendChild(lab);
+      row.appendChild(range);
+      row.appendChild(readout);
+      document.getElementById('employeeWeights').appendChild(row);
+    });
+
+    injectRows('teamSliders', teamDefs);
+    twDefs.forEach(function (def) {
+      const row = document.createElement('div');
+      row.className = 'slider-row';
+      const lab = document.createElement('div');
+      lab.className = 'slider-label-cell';
+      lab.textContent = def.label;
+      const range = document.createElement('input');
+      range.type = 'range';
+      range.min = def.min;
+      range.max = def.max;
+      range.step = def.step;
+      range.dataset.key = def.key;
+      const readout = document.createElement('div');
+      readout.className = 'readout';
+      readout.id = 'ro-' + def.key;
+      inputs[def.key] = def.min;
+      range.value = def.min;
+      range.addEventListener('input', function () {
+        inputs[def.key] = parseFloat(range.value);
+        syncPresetToCustom();
+        refreshAll();
+      });
+      row.appendChild(lab);
+      row.appendChild(range);
+      row.appendChild(readout);
+      document.getElementById('teamWeights').appendChild(row);
+    });
+
+    window._sliderReadouts = {
+      company: companyDefs,
+      manager: managerDefs,
+      employee: empDefs,
+      team: teamDefs
+    };
+  }
+
+  function syncPresetToCustom() {
+    const sel = document.getElementById('presetSelect');
+    if (sel.value !== 'custom') sel.value = 'custom';
+    presetLabel = 'Custom (manual)';
+  }
+
+  function setInputElement(key, val) {
+    inputs[key] = val;
+    const inp = document.querySelector('input[data-key="' + key + '"]');
+    if (inp) inp.value = val;
+  }
+
+  /* Applies a named historical preset to every slider input simultaneously */
+  function applyPreset(presetName) {
+    const p = PRESETS[presetName];
+    if (!p) return;
+    setInputElement('pi', p.pi);
+    setInputElement('MS', p.MS);
+    setInputElement('Tg', p.Tg);
+    setInputElement('sigma2', p.sigma2);
+    setInputElement('alpha', p.alpha);
+    setInputElement('beta', p.beta);
+    setInputElement('gamma', p.gamma);
+    setInputElement('delta', p.delta);
+    setInputElement('job_security', p.job_security);
+    setInputElement('career_advancement', p.career_advancement);
+    setInputElement('pnl_risk', p.pnl_risk);
+    setInputElement('P', p.P);
+    setInputElement('C', p.C);
+    setInputElement('L', p.L);
+    setInputElement('autonomy', p.autonomy);
+    setInputElement('meaning', p.meaning);
+    setInputElement('overload', p.overload);
+    setInputElement('A', p.A);
+    setInputElement('M', p.M);
+    setInputElement('W', p.W);
+    setInputElement('coord', p.coord);
+    setInputElement('decision_time', p.decision_time);
+    setInputElement('friction', p.friction);
+    setInputElement('Ct', p.Ct);
+    setInputElement('It', p.It);
+    setInputElement('Ft', p.Ft);
+    presetLabel = p.label;
+    document.getElementById('footPreset').textContent = presetLabel;
+  }
+
+  /* Computes U_company, U_manager, U_emp, U_team and component breakdown terms */
+  function computeUtilities() {
+    const pi = inputs.pi;
+    const MS = inputs.MS;
+    const Tg = inputs.Tg;
+    const sigma2 = inputs.sigma2;
+    const alpha = inputs.alpha;
+    const beta = inputs.beta;
+    const gamma = inputs.gamma;
+    const delta = inputs.delta;
+
+    const termLn = alpha * Math.log(pi);
+    const termMS = beta * Math.sqrt(MS);
+    const termTg = gamma * (1 / Tg);
+    const termVar = -delta * sigma2;
+
+    const uCompany = termLn + termMS + termTg + termVar;
+
+    const uManager = inputs.P * inputs.job_security + inputs.C * inputs.career_advancement - inputs.L * inputs.pnl_risk;
+
+    const uEmp = inputs.A * Math.sqrt(Math.max(0, inputs.autonomy)) + inputs.M * inputs.meaning - inputs.W * inputs.overload;
+
+    const invDt = 1 / inputs.decision_time;
+    const uTeam = inputs.Ct * inputs.coord + inputs.It * invDt - inputs.Ft * inputs.friction;
+
+    const innovDenom = Math.max(gamma * (1 / Tg), 0.001);
+    const conflictScore = (inputs.L * inputs.pnl_risk) / innovDenom;
+
+    return {
+      uCompany,
+      uManager,
+      uEmp,
+      uTeam,
+      terms: { termLn, termMS, termTg, termVar },
+      conflictScore,
+      innovDenom,
+      gammaTg: gamma * (1 / Tg)
+    };
+  }
+
+  /* Derives pairwise alignment scores between company components and stakeholder utilities */
+  function computeAlignmentScores() {
+    const pi = inputs.pi;
+    const MS = inputs.MS;
+    const Tg = inputs.Tg;
+    const sigma2 = inputs.sigma2;
+    const alpha = inputs.alpha;
+    const beta = inputs.beta;
+    const gamma = inputs.gamma;
+    const delta = inputs.delta;
+
+    const lnPi = alpha * Math.log(pi);
+    const sqrtMS = beta * Math.sqrt(MS);
+    const gTg = gamma * (1 / Tg);
+
+    const mCore = inputs.P * inputs.job_security + inputs.C * inputs.career_advancement;
+    const mRisk = inputs.L * inputs.pnl_risk;
+    const eCore = inputs.A * Math.sqrt(Math.max(0, inputs.autonomy)) + inputs.M * inputs.meaning;
+    const ePen = inputs.W * inputs.overload;
+    const tCore = inputs.Ct * inputs.coord + inputs.It * (1 / inputs.decision_time);
+    const tPen = inputs.Ft * inputs.friction;
+
+    function safeDiv(num, den) {
+      return num / Math.max(den, 0.001);
+    }
+
+    const cells = [
+      {
+        row: 'γ/T_g',
+        col: 'U_manager',
+        term: '−L·p&amp;l_risk',
+        score: -1 * safeDiv(mRisk, gTg)
+      },
+      {
+        row: 'γ/T_g',
+        col: 'U_emp',
+        term: '−W·overload',
+        score: -1 * safeDiv(ePen, gTg)
+      },
+      {
+        row: 'γ/T_g',
+        col: 'U_team',
+        term: 'I/T_dec',
+        score: safeDiv(inputs.It * (1 / inputs.decision_time), gTg)
+      },
+      {
+        row: 'α·ln(π)',
+        col: 'U_manager',
+        term: 'P·js+C·ca',
+        score: safeDiv(mCore, Math.abs(lnPi) > 1e-9 ? lnPi : 0.001 * Math.sign(lnPi || 1))
+      },
+      {
+        row: 'α·ln(π)',
+        col: 'U_emp',
+        term: 'A·√a+M·m',
+        score: safeDiv(eCore, Math.abs(lnPi) > 1e-9 ? lnPi : 0.001)
+      },
+      {
+        row: 'α·ln(π)',
+        col: 'U_team',
+        term: 'C·cq+I/T',
+        score: safeDiv(tCore, Math.abs(lnPi) > 1e-9 ? lnPi : 0.001)
+      },
+      {
+        row: 'β·√MS',
+        col: 'U_manager',
+        term: 'P·js+C·ca',
+        score: safeDiv(mCore, Math.abs(sqrtMS) > 1e-9 ? sqrtMS : 0.001)
+      },
+      {
+        row: 'β·√MS',
+        col: 'U_emp',
+        term: 'A·√a+M·m',
+        score: safeDiv(eCore, Math.abs(sqrtMS) > 1e-9 ? sqrtMS : 0.001)
+      },
+      {
+        row: 'β·√MS',
+        col: 'U_team',
+        term: 'C·cq+I/T−F·fr',
+        score: safeDiv(tCore - tPen, Math.abs(sqrtMS) > 1e-9 ? sqrtMS : 0.001)
+      },
+      {
+        row: '−δ·σ²_π',
+        col: 'U_manager',
+        term: 'L·p&amp;l_risk',
+        score: -1 * safeDiv(mRisk, Math.max(delta * sigma2, 0.001))
+      },
+      {
+        row: '−δ·σ²_π',
+        col: 'U_emp',
+        term: 'W·overload',
+        score: -1 * safeDiv(ePen, Math.max(delta * sigma2, 0.001))
+      },
+      {
+        row: '−δ·σ²_π',
+        col: 'U_team',
+        term: 'F·friction',
+        score: -1 * safeDiv(tPen, Math.max(delta * sigma2, 0.001))
+      }
+    ];
+
+    let posSum = 0;
+    let negAbs = 0;
+    cells.forEach(function (c) {
+      if (c.score > 0) posSum += c.score;
+      else negAbs += Math.abs(c.score);
+    });
+    const systemTotal = posSum - negAbs;
+
+    return { cells, systemTotal };
+  }
+
+  /* Classifies an alignment score for badge color (conflict / aligns / neutral) */
+  function badgeClass(score) {
+    if (score > 0.02) return { cls: 'aligns', label: 'aligns' };
+    if (score < -0.02) return { cls: 'conflict', label: 'conflict' };
+    return { cls: 'neutral', label: 'neutral' };
+  }
+
+  /* Refreshes slider readouts to show raw inputs and instantaneous term contributions */
+  function updateReadouts() {
+    const defs = window._sliderReadouts;
+    function upd(list, keys) {
+      if (!list) return;
+      list.forEach(function (def) {
+        const ro = document.getElementById('ro-' + def.key);
+        if (!ro) return;
+        const v = inputs[def.key];
+        ro.innerHTML = def.readout(v);
+      });
+    }
+    upd(defs.company, null);
+    upd(defs.manager, null);
+    upd(defs.employee, null);
+    upd(defs.team, null);
+
+    ['alpha','beta','gamma','delta','P','C','L','A','M','W','Ct','It','Ft'].forEach(function (k) {
+      const ro = document.getElementById('ro-' + k);
+      if (ro) ro.textContent = fmtNum(inputs[k], 2);
+    });
+  }
+
+  /* Renders the stacked proportional bar and numeric term breakdown for company utility */
+  function updateBreakdown(terms) {
+    const vals = [
+      { v: terms.termLn, cls: 'amber', label: 'α·ln(π)' },
+      { v: terms.termMS, cls: 'teal', label: 'β·√MS' },
+      { v: terms.termTg, cls: 'green', label: 'γ/T_g' },
+      { v: terms.termVar, cls: 'red', label: '−δ·σ²' }
+    ];
+    const sumAbs = vals.reduce(function (a, b) { return a + Math.abs(b.v); }, 0) || 1;
+    const bar = document.getElementById('breakdownBar');
+    const valsEl = document.getElementById('breakdownValues');
+    bar.innerHTML = '';
+    valsEl.innerHTML = '';
+    vals.forEach(function (x) {
+      const seg = document.createElement('div');
+      seg.className = 'breakdown-seg ' + x.cls;
+      seg.style.width = (100 * Math.abs(x.v) / sumAbs) + '%';
+      seg.textContent = x.label;
+      bar.appendChild(seg);
+      const line = document.createElement('span');
+      line.innerHTML = x.label + ': ' + fmtNum(x.v, 3);
+      valsEl.appendChild(line);
+    });
+  }
+
+  /* Positions the manager vs company innovation conflict marker and label */
+  function updateConflictMeter(score) {
+    const marker = document.getElementById('conflictMarker');
+    const text = document.getElementById('conflictText');
+    const ref = document.getElementById('conflictRef');
+    const clamped = Math.max(0, Math.min(2, score));
+    const pct = (clamped / 2) * 100;
+    marker.style.left = pct + '%';
+    ref.textContent = 'γ=' + fmtNum(inputs.gamma, 2) + ', T_g=' + fmtNum(inputs.Tg, 2) + ' → γ/T_g=' + fmtNum(inputs.gamma / inputs.Tg, 4) + ' · score=' + fmtNum(score, 3);
+    if (score > 1) {
+      text.textContent = 'Manager utility actively suppresses company innovation speed.';
+      text.className = 'conflict-label red';
+    } else if (score < 0.5) {
+      text.textContent = 'Manager and company utilities aligned.';
+      text.className = 'conflict-label green';
+    } else {
+      text.textContent = 'Partial conflict.';
+      text.className = 'conflict-label amber';
+    }
+  }
+
+  /* Updates Chart.js instances for all tabs from current inputs */
+  function updateCharts() {
+    const pi0 = inputs.pi;
+    const pnl0 = inputs.pnl_risk;
+
+    const piMin = 500;
+    const piMax = 50000;
+    const nPts = 80;
+    const companyXY = [];
+    for (let i = 0; i <= nPts; i++) {
+      const p = piMin + (piMax - piMin) * (i / nPts);
+      const y =
+        inputs.alpha * Math.log(p) +
+        inputs.beta * Math.sqrt(inputs.MS) +
+        inputs.gamma * (1 / inputs.Tg) -
+        inputs.delta * inputs.sigma2;
+      companyXY.push({ x: p, y: y });
+    }
+
+    const vlineCompany = {
+      id: 'vlinePi',
+      afterDraw: function (chart) {
+        const xScale = chart.scales.x;
+        const xa = chart.chartArea;
+        let x = xScale.getPixelForValue(pi0);
+        x = Math.max(xa.left, Math.min(xa.right, x));
+        const ctx = chart.ctx;
+        ctx.save();
+        ctx.setLineDash([4, 4]);
+        ctx.strokeStyle = '#1a1a1a';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(x, xa.top);
+        ctx.lineTo(x, xa.bottom);
+        ctx.stroke();
+        ctx.restore();
+      }
+    };
+
+    if (charts.company) charts.company.destroy();
+    charts.company = new Chart(document.getElementById('chartCompany'), {
+      type: 'line',
+      data: {
+        datasets: [{
+          label: 'U_company',
+          data: companyXY,
+          borderColor: '#BA7517',
+          borderWidth: 2,
+          pointRadius: 0,
+          tension: 0.15,
+          parsing: false
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: false,
+        interaction: { mode: 'nearest', intersect: false },
+        plugins: { legend: { display: false } },
+        scales: {
+          x: {
+            type: 'linear',
+            title: { display: true, text: 'π (net earnings, $M)' },
+            min: piMin,
+            max: piMax
+          },
+          y: { title: { display: true, text: 'utils' } }
+        }
+      },
+      plugins: [vlineCompany]
+    });
+
+    const pnlXY = [];
+    for (let i = 0; i <= 50; i++) {
+      const r = (10 * i) / 50;
+      pnlXY.push({
+        x: r,
+        y: inputs.P * inputs.job_security + inputs.C * inputs.career_advancement - inputs.L * r
+      });
+    }
+
+    const vlinePnl = {
+      id: 'vlinePnl',
+      afterDraw: function (chart) {
+        const xScale = chart.scales.x;
+        const xa = chart.chartArea;
+        let x = xScale.getPixelForValue(pnl0);
+        x = Math.max(xa.left, Math.min(xa.right, x));
+        const ctx = chart.ctx;
+        ctx.save();
+        ctx.setLineDash([4, 4]);
+        ctx.strokeStyle = '#1a1a1a';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(x, xa.top);
+        ctx.lineTo(x, xa.bottom);
+        ctx.stroke();
+        ctx.restore();
+      }
+    };
+
+    if (charts.manager) charts.manager.destroy();
+    charts.manager = new Chart(document.getElementById('chartManager'), {
+      type: 'line',
+      data: {
+        datasets: [{
+          label: 'U_manager',
+          data: pnlXY,
+          borderColor: '#D85A30',
+          borderWidth: 2,
+          pointRadius: 0,
+          tension: 0,
+          parsing: false
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: false,
+        plugins: { legend: { display: false } },
+        scales: {
+          x: {
+            type: 'linear',
+            title: { display: true, text: 'p&l_risk' },
+            min: 0,
+            max: 10
+          },
+          y: { title: { display: true, text: 'U_manager' } }
+        }
+      },
+      plugins: [vlinePnl]
+    });
+
+    const autoXY = [];
+    for (let i = 0; i <= 50; i++) {
+      const a = (10 * i) / 50;
+      autoXY.push({
+        x: a,
+        y: inputs.A * Math.sqrt(a) + inputs.M * inputs.meaning - inputs.W * inputs.overload
+      });
+    }
+
+    const vlineAuto = {
+      id: 'vlineA',
+      afterDraw: function (chart) {
+        const xScale = chart.scales.x;
+        const xa = chart.chartArea;
+        let x = xScale.getPixelForValue(inputs.autonomy);
+        x = Math.max(xa.left, Math.min(xa.right, x));
+        const ctx = chart.ctx;
+        ctx.save();
+        ctx.setLineDash([4, 4]);
+        ctx.strokeStyle = '#1a1a1a';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(x, xa.top);
+        ctx.lineTo(x, xa.bottom);
+        ctx.stroke();
+        ctx.restore();
+      }
+    };
+
+    if (charts.empAuto) charts.empAuto.destroy();
+    charts.empAuto = new Chart(document.getElementById('chartEmpAuto'), {
+      type: 'line',
+      data: {
+        datasets: [{
+          data: autoXY,
+          borderColor: '#1D9E75',
+          borderWidth: 2,
+          pointRadius: 0,
+          tension: 0.2,
+          parsing: false
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: false,
+        plugins: { legend: { display: false } },
+        scales: {
+          x: {
+            type: 'linear',
+            title: { display: true, text: 'autonomy' },
+            min: 0,
+            max: 10
+          },
+          y: { title: { display: true, text: 'U_emp' } }
+        }
+      },
+      plugins: [vlineAuto]
+    });
+
+    const olXY = [];
+    for (let i = 0; i <= 50; i++) {
+      const o = (10 * i) / 50;
+      olXY.push({
+        x: o,
+        y: inputs.A * Math.sqrt(Math.max(0, inputs.autonomy)) + inputs.M * inputs.meaning - inputs.W * o
+      });
+    }
+
+    if (charts.empOl) charts.empOl.destroy();
+    charts.empOl = new Chart(document.getElementById('chartEmpOverload'), {
+      type: 'line',
+      data: {
+        datasets: [{
+          data: olXY,
+          borderColor: '#D85A30',
+          borderWidth: 2,
+          pointRadius: 0,
+          tension: 0,
+          parsing: false
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: false,
+        plugins: { legend: { display: false } },
+        scales: {
+          x: {
+            type: 'linear',
+            title: { display: true, text: 'overload' },
+            min: 0,
+            max: 10
+          },
+          y: { title: { display: true, text: 'U_emp' } }
+        }
+      }
+    });
+
+    const teamXY = [];
+    for (let i = 0; i <= 60; i++) {
+      const dt = 0.5 + (14.5 * i) / 60;
+      teamXY.push({
+        x: dt,
+        y: inputs.Ct * inputs.coord + inputs.It * (1 / dt) - inputs.Ft * inputs.friction
+      });
+    }
+
+    const histLines = {
+      id: 'histLines',
+      afterDraw: function (chart) {
+        const ctx = chart.ctx;
+        const xScale = chart.scales.x;
+        const xa = chart.chartArea;
+        const marks = [
+          { v: 10, label: 'Geographic era (10+ yrs)' },
+          { v: 4, label: 'Global matrix (4 yrs)' },
+          { v: 2, label: 'Target: circles (<2 yrs)' }
+        ];
+        ctx.save();
+        ctx.font = '10px system-ui, sans-serif';
+        ctx.fillStyle = '#6b6b6b';
+        marks.forEach(function (m) {
+          let x = xScale.getPixelForValue(m.v);
+          x = Math.max(xa.left, Math.min(xa.right, x));
+          ctx.setLineDash([3, 3]);
+          ctx.strokeStyle = '#888780';
+          ctx.beginPath();
+          ctx.moveTo(x, xa.top);
+          ctx.lineTo(x, xa.bottom);
+          ctx.stroke();
+          ctx.setLineDash([]);
+          const lx = Math.min(x + 4, xa.right - 100);
+          ctx.fillText(m.label, lx, xa.top + 12);
+        });
+        ctx.restore();
+      }
+    };
+
+    if (charts.team) charts.team.destroy();
+    charts.team = new Chart(document.getElementById('chartTeam'), {
+      type: 'line',
+      data: {
+        datasets: [{
+          data: teamXY,
+          borderColor: '#7F77DD',
+          borderWidth: 2,
+          pointRadius: 0,
+          tension: 0.2,
+          parsing: false
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: false,
+        plugins: { legend: { display: false } },
+        scales: {
+          x: {
+            type: 'linear',
+            title: { display: true, text: 'decision_time (years)' },
+            min: 0.5,
+            max: 15
+          },
+          y: { title: { display: true, text: 'U_team' } }
+        }
+      },
+      plugins: [histLines]
+    });
+  }
+
+  /* Writes stakeholder and company utilities to the persistent footer */
+  function updateFooter(u) {
+    document.getElementById('footCompany').textContent = fmtNum(u.uCompany, 4);
+    document.getElementById('footManager').textContent = fmtNum(u.uManager, 4);
+    document.getElementById('footEmployee').textContent = fmtNum(u.uEmp, 4);
+    document.getElementById('footTeam').textContent = fmtNum(u.uTeam, 4);
+    document.getElementById('footPreset').textContent = presetLabel;
+  }
+
+  /* Fills the 4×3 interaction matrix and the total system alignment score */
+  function renderInteractionGrid() {
+    const { cells, systemTotal } = computeAlignmentScores();
+    const grid = document.getElementById('interactionGrid');
+    grid.innerHTML =
+      '<div class="gh"></div>' +
+      '<div class="gh">U_manager</div><div class="gh">U_emp</div><div class="gh">U_team</div>';
+    const rows = ['γ/T_g', 'α·ln(π)', 'β·√MS', '−δ·σ²_π'];
+    const byRow = {};
+    rows.forEach(function (r) { byRow[r] = []; });
+    cells.forEach(function (c) {
+      byRow[c.row].push(c);
+    });
+    rows.forEach(function (r) {
+      const rl = document.createElement('div');
+      rl.className = 'row-label';
+      rl.textContent = r;
+      grid.appendChild(rl);
+      ['U_manager', 'U_emp', 'U_team'].forEach(function (col) {
+        const cell = byRow[r].find(function (x) { return x.col === col; });
+        const card = document.createElement('div');
+        card.className = 'cell-card';
+        const b = badgeClass(cell.score);
+        card.innerHTML =
+          '<div style="font-size:11px;color:var(--muted)">' + cell.term + '</div>' +
+          '<div style="font-family:monospace;font-size:13px;margin-top:4px">' + fmtNum(cell.score, 4) + '</div>' +
+          '<span class="badge ' + b.cls + '">' + b.label + '</span>';
+        grid.appendChild(card);
+      });
+    });
+    document.getElementById('systemAlignTotal').textContent = fmtNum(systemTotal, 4);
+  }
+
+  /* Recomputes utilities, DOM readouts, charts, footer, and interaction grid */
+  function refreshAll() {
+    const u = computeUtilities();
+    updateReadouts();
+    document.getElementById('totalCompanyVal').textContent = fmtNum(u.uCompany, 4);
+    document.getElementById('totalManagerVal').textContent = fmtNum(u.uManager, 4);
+    document.getElementById('totalEmployeeVal').textContent = fmtNum(u.uEmp, 4);
+    document.getElementById('totalTeamVal').textContent = fmtNum(u.uTeam, 4);
+    updateBreakdown(u.terms);
+    updateConflictMeter(u.conflictScore);
+    updateCharts();
+    updateFooter(u);
+    renderInteractionGrid();
+  }
+
+  document.getElementById('presetSelect').addEventListener('change', function (e) {
+    if (e.target.value === 'custom') {
+      presetLabel = 'Custom (manual)';
+      document.getElementById('footPreset').textContent = presetLabel;
+      refreshAll();
+      return;
+    }
+    applyPreset(e.target.value);
+    refreshAll();
+  });
+
+  document.querySelectorAll('.nav-item').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      const id = btn.dataset.tab;
+      document.querySelectorAll('.nav-item').forEach(function (b) {
+        b.classList.toggle('active', b === btn);
+        b.setAttribute('aria-selected', b === btn ? 'true' : 'false');
+      });
+      document.querySelectorAll('.tab-panel').forEach(function (p) {
+        const on = p.id === id;
+        p.classList.toggle('active', on);
+        p.hidden = !on;
+      });
+      requestAnimationFrame(function () {
+        Object.keys(charts).forEach(function (k) {
+          const c = charts[k];
+          if (c && typeof c.resize === 'function') c.resize();
+        });
+      });
+    });
+  });
+
+  window.addEventListener('resize', function () {
+    Object.keys(charts).forEach(function (k) {
+      const c = charts[k];
+      if (c && typeof c.resize === 'function') c.resize();
+    });
+  });
+
+  document.getElementById('helpBtn').addEventListener('click', function () {
+    document.getElementById('modalBackdrop').classList.add('open');
+  });
+  document.getElementById('modalClose').addEventListener('click', function () {
+    document.getElementById('modalBackdrop').classList.remove('open');
+  });
+  document.getElementById('modalBackdrop').addEventListener('click', function (e) {
+    if (e.target.id === 'modalBackdrop') document.getElementById('modalBackdrop').classList.remove('open');
+  });
+
+  buildSliders();
+  document.getElementById('presetSelect').value = 'global-matrix';
+  applyPreset('global-matrix');
+  refreshAll();
+})();
+  </script>
+</body>
+</html>
